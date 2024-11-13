@@ -26,20 +26,21 @@ export const Receiver = () => {
             video.srcObject = new MediaStream([event.track]);
         }
 
-        socket.onmessage = (event) => {
+        socket.onmessage = async (event) => {
             const message = JSON.parse(event.data);
-            if (message.type === 'createOffer') {
-                pc.setRemoteDescription(message.sdp).then(() => {
-                    pc.createAnswer().then((answer) => {
-                        pc.setLocalDescription(answer);
-                        socket.send(JSON.stringify({
-                            type: 'createAnswer',
-                            sdp: answer
-                        }));
-                    });
-                });
-            } else if (message.type === 'iceCandidate') {
-                pc.addIceCandidate(message.candidate);
+
+            switch (message.type) {
+                case 'createOffer':
+                    await pc.setRemoteDescription(message.sdp);
+                    const answer = await pc.createAnswer()
+                    socket.send(JSON.stringify({
+                        type: 'createAnswer',
+                        sdp: answer
+                    }));
+                    break;
+                case 'iceCandidate':
+                    pc.addIceCandidate(message.candidate);
+                    break;
             }
         }
     }

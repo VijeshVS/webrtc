@@ -8,36 +8,39 @@ let receiverSocket: null | WebSocket = null;
 wss.on("connection", function connection(ws) {
   ws.on("error", console.error);
 
-  ws.on("message", function message(data: any) {
-    const message = JSON.parse(data);
-    if (message.type === "sender") {
-      senderSocket = ws;
-    } else if (message.type === "receiver") {
-      receiverSocket = ws;
-    } else if (message.type === "createOffer") {
-      if (ws !== senderSocket) {
-        return;
-      }
-      receiverSocket?.send(
-        JSON.stringify({ type: "createOffer", sdp: message.sdp })
-      );
-    } else if (message.type === "createAnswer") {
-      if (ws !== receiverSocket) {
-        return;
-      }
-      senderSocket?.send(
-        JSON.stringify({ type: "createAnswer", sdp: message.sdp })
-      );
-    } else if (message.type === "iceCandidate") {
-      if (ws === senderSocket) {
+  ws.on("message", function message(data: Buffer) {
+    const message = JSON.parse(data.toString());
+
+    switch (message.type) {
+      case "sender":
+        senderSocket = ws;
+        break;
+      case "receiver":
+        receiverSocket = ws;
+        break;
+      case "createOffer":
+        if (ws != senderSocket) return;
         receiverSocket?.send(
-          JSON.stringify({ type: "iceCandidate", candidate: message.candidate })
+          JSON.stringify({ type: "createOffer", sdp: message.sdp })
         );
-      } else if (ws === receiverSocket) {
+        break;
+      case "createAnswer":
+        if (ws != receiverSocket) return;
         senderSocket?.send(
-          JSON.stringify({ type: "iceCandidate", candidate: message.candidate })
+          JSON.stringify({ type: "createAnswer", sdp: message.sdp })
         );
-      }
+        break;
+      case "iceCandidate":
+        const msg = JSON.stringify({
+          type: "iceCandidate",
+          candidate: message.candidate,
+        });
+
+        if (ws === senderSocket) {
+          receiverSocket?.send(msg);
+        } else {
+          senderSocket?.send(msg);
+        }
     }
   });
 });

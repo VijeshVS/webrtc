@@ -2,7 +2,6 @@ import { useEffect, useState } from "react"
 
 export const Sender = () => {
     const [socket, setSocket] = useState<WebSocket | null>(null);
-    const [pc, setPC] = useState<RTCPeerConnection | null>(null);
 
     useEffect(() => {
         const socket = new WebSocket('ws://localhost:8080');
@@ -23,15 +22,19 @@ export const Sender = () => {
 
         socket.onmessage = async (event) => {
             const message = JSON.parse(event.data);
-            if (message.type === 'createAnswer') {
-                await pc.setRemoteDescription(message.sdp);
-            } else if (message.type === 'iceCandidate') {
-                pc.addIceCandidate(message.candidate);
+
+            switch(message.type){
+                case 'createAnswer':
+                    await pc.setRemoteDescription(message.sdp);
+                    break;
+                case 'iceCandidate':
+                    pc.addIceCandidate(message.candidate);
+                    break;
             }
         }
 
         const pc = new RTCPeerConnection();
-        setPC(pc);
+
         pc.onicecandidate = (event) => {
             if (event.candidate) {
                 socket?.send(JSON.stringify({
@@ -58,7 +61,7 @@ export const Sender = () => {
             const video = document.createElement('video');
             video.srcObject = stream;
             video.play();
-            // this is wrong, should propogate via a component
+            
             document.body.appendChild(video);
             stream.getTracks().forEach((track) => {
                 pc?.addTrack(track);
